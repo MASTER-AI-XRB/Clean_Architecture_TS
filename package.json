@@ -1,0 +1,20 @@
+{
+  "name": "clean-architecture-ts",
+  "version": "1.0.0",
+  "description": "Clean Architecture TypeScript Project",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "dev": "tsx main.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
+  }
+}
