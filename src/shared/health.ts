@@ -1,8 +1,6 @@
-function checkHealth (): { status : string; timestamp: Date; } {
+export function checkHealth(): { status: string; timestamp: Date } {
   return {
-    status : 'OK',
-    timestamp: new Date()
+    status: 'OK',
+    timestamp: new Date(),
   };
 }
-
-export = checkHealth;

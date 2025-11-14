@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import checkHealth from '../../src/shared/health';
+import { checkHealth } from '../../src/shared/health';
 
 describe('checkHealth', () => {
   it('should return health status OK and a timestamp', () => {
