@@ -2,14 +2,14 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    "rootDir": "./src",
+    "rootDir": ".",
     "outDir": "./dist",
-    "baseUrl": "./src",
+    "baseUrl": ".",
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
-    "target": "es2022",
+    "target": "ES2022",
     "types": [],
     // For nodejs:
     // "lib": ["esnext"],
@@ -36,11 +36,11 @@
     // Recommended Options
     "strict": true,
     "jsx": "react-jsx",
-    "verbatimModuleSyntax": true,
+    "verbatimModuleSyntax": false,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
-    "skipLibCheck": true,
+    "skipLibCheck": true
   },
   "include": ["src/**/*.ts", "main.ts"],
   "exclude": ["node_modules", "dist", "test"]
