@@ -57,7 +57,6 @@ export class OrderItem {
         this.name = props.name
         this.quantity = props.quantity
         this.unitPrice = props.unitPrice
-        this.metadata = props.metadata
     }
 
     get total(): number {
@@ -70,7 +69,6 @@ export class OrderItem {
             name: this.name,
             quantity: this.quantity,
             unitPrice: this.unitPrice,
-            metadata: this.metadata,
         }
     }
 
@@ -100,7 +98,6 @@ export class Order {
         this._status = props.status ?? 'pending'
         this.createdAt = props.createdAt ?? new Date()
         this._updatedAt = props.updatedAt ?? new Date()
-        this.metadata = props.metadata
     }
 
     static create(props: Omit<OrderProps, 'id' | 'createdAt' | 'updatedAt' | 'status'> & Partial<Pick<OrderProps, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'metadata'>>): Order {
@@ -112,7 +109,6 @@ export class Order {
             status: props.status,
             createdAt: props.createdAt,
             updatedAt: props.updatedAt,
-            metadata: props.metadata,
         })
     }
 
@@ -122,13 +118,21 @@ export class Order {
             id: p.id,
             customerId: p.customerId,
             items: p.items,
-            status: p.status,
+            ...(p.status && { status: p.status }),
             createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
             updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(),
-            metadata: p.metadata,
         })
     }
-
+    canTransitionTo(newStatus: OrderStatus): boolean {
+        const validTransitions: Record<OrderStatus, OrderStatus[]> = {
+            pending: ['confirmed', 'cancelled'],
+            confirmed: ['paid', 'cancelled'],
+            paid: ['shipped', 'cancelled'],
+            shipped: [],
+            cancelled: [],
+        }
+        return validTransitions[this._status].includes(newStatus)
+    }
     toPrimitives(): OrderProps {
         return {
             id: this.id,
@@ -137,7 +141,6 @@ export class Order {
             status: this._status,
             createdAt: this.createdAt,
             updatedAt: this._updatedAt,
-            metadata: this.metadata,
         }
     }
 
@@ -167,7 +170,6 @@ export class Order {
                 name: existing.name,
                 quantity: existing.quantity + newItem.quantity,
                 unitPrice: newItem.unitPrice, // last price wins; adapt if business rules differ
-                metadata: { ...(existing.metadata ?? {}), ...(newItem.metadata ?? {}) },
             })
             this._items[existingIndex] = merged
         } else {
@@ -198,7 +200,6 @@ export class Order {
             name: existing.name,
             quantity,
             unitPrice: existing.unitPrice,
-            metadata: existing.metadata,
         })
         this.touch()
     }
