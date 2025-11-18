@@ -1,5 +1,5 @@
 import Fastify from "fastify"
-import { OrdersController } from "@infrastructure/http/OrdersController"
+import { OrdersController } from "@infrastructure/http/controllers/OrdersController"
 
 export async function buildServer() {
     const app = Fastify()

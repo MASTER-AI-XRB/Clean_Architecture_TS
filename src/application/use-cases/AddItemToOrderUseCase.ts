@@ -1,20 +1,29 @@
 import { AddItemToOrderInput, AddItemToOrderOutput } from "@application/dtos/AddItemToOrderDTO"
 import { AppError, ValidationError, NotFoundError } from "@application/errors"
 import { OrderRepository } from "@application/ports/OrderRepository"
+import { PricingService } from "@application/ports/PricingService"
+import { EventBus } from "@application/ports/EventBus"
+import { Clock } from "@application/ports/Clock"
 import { OrderItemProps } from "@domain/entities/Order"
+import { DomainEvent } from "@domain/events"
 import { Result, ok, fail } from "@shared/result"
 
 export class AddItemToOrder {
-    constructor (private readonly repo: OrderRepository) {}
+    constructor (
+        private readonly repo: OrderRepository,
+        private readonly pricing: PricingService,
+        private readonly events: EventBus,
+        private readonly clock: Clock,
+    ) {}
 
-    async execute (input: AddItemToOrderInput & { unitPrice: number }): Promise<Result<AddItemToOrderOutput, AppError>> {
+    async execute (input: AddItemToOrderInput & { unitPrice?: number }): Promise<Result<AddItemToOrderOutput, AppError>> {
         const validated = this.validate(input)
         if (!validated.ok) {
             return fail(validated.error)
         }
 
         try {
-            const { orderId, sku, qty, currency, unitPrice } = validated.value
+            const { orderId, sku, qty, currency } = validated.value
 
             const existing = await this.repo.findById(orderId)
             if (!existing) {
@@ -26,15 +35,30 @@ export class AddItemToOrder {
                 return fail(notFound)
             }
 
+            const unitPriceResult = await this.resolveUnitPrice(validated.value)
+            if (!unitPriceResult.ok) {
+                return fail(unitPriceResult.error)
+            }
+
             const item: OrderItemProps = {
                 productId: sku,
                 name: sku,
                 quantity: qty,
-                unitPrice,
+                unitPrice: unitPriceResult.value,
             }
 
             existing.addItem(item)
             await this.repo.save(existing)
+
+            await this.events.publish([
+                this.makeEvent("order.item_added", {
+                    orderId: existing.id,
+                    sku,
+                    qty,
+                    unitPrice: unitPriceResult.value,
+                    total: existing.total,
+                }),
+            ])
 
             const output: AddItemToOrderOutput = {
                 orderId: existing.id,
@@ -47,14 +71,52 @@ export class AddItemToOrder {
             return ok(output)
         } catch (e) {
             const err: ValidationError = {
-                type: "ValidationError",
+                type: "validation",
                 message: (e as Error).message,
             }
             return fail(err)
         }
     }
 
-    private validate (input: AddItemToOrderInput & { unitPrice: number }): Result<AddItemToOrderInput & { unitPrice: number }, ValidationError> {
+    private async resolveUnitPrice (input: AddItemToOrderInput & { unitPrice?: number }): Promise<Result<number, ValidationError>> {
+        if (input.unitPrice !== undefined) {
+            if (!Number.isFinite(input.unitPrice) || input.unitPrice < 0) {
+                return fail({
+                    type: "validation",
+                    message: "Invalid input",
+                    details: { unitPrice: "Unit price must be a non-negative number" },
+                })
+            }
+            return ok(input.unitPrice)
+        }
+
+        try {
+            const fetched = await this.pricing.getCurrentPrice(input.sku as any, input.currency as any)
+            if (!fetched) {
+                return fail({
+                    type: "validation",
+                    message: "Price not available for sku/currency",
+                    details: { price: "Pricing service returned no price" },
+                })
+            }
+            return ok(fetched.amount)
+        } catch (err) {
+            return fail({
+                type: "validation",
+                message: (err as Error).message,
+            })
+        }
+    }
+
+    private makeEvent (type: string, payload: Record<string, unknown>): DomainEvent {
+        return {
+            type,
+            payload,
+            occurredAt: this.clock.now(),
+        }
+    }
+
+    private validate (input: AddItemToOrderInput): Result<AddItemToOrderInput, ValidationError> {
         const errors: Record<string, string> = {}
 
         if (!input.orderId || typeof input.orderId !== "string" || input.orderId.trim().length === 0) {
@@ -73,13 +135,9 @@ export class AddItemToOrder {
             errors.currency = "Unsupported currency"
         }
 
-        if (!Number.isFinite(input.unitPrice) || input.unitPrice < 0) {
-            errors.unitPrice = "Unit price must be a non-negative number"
-        }
-
         if (Object.keys(errors).length > 0) {
             return fail({
-                type: "ValidationError",
+                type: "validation",
                 message: "Invalid input",
                 details: errors,
             })
