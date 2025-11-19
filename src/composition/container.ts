@@ -36,7 +36,7 @@ export function buildContainer() {
 
     const createOrder = new CreateOrder(orders, events)
     const deleteOrder = new DeleteOrder(orders)
-    const addItemToOrder = new AddItemToOrder(orders, pricing, events, clock)
+    const addItemToOrder = new AddItemToOrder({ orders, pricing, events, clock })
 
     return {
         cfg, logger, pool,

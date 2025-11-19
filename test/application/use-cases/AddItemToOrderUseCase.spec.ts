@@ -6,12 +6,14 @@ import { PricingService } from "@application/ports/PricingService"
 import { EventBus } from "@application/ports/EventBus"
 import { Clock } from "@application/ports/Clock"
 import { Price } from "@domain/value-objects/Price"
+import { AppContext } from "@application/context"
 
 describe("AddItemToOrder use case", () => {
     let repo: InMemoryOrderRepository
     let pricing: PricingService
     let events: EventBus
     let clock: Clock
+    let ctx: AppContext
 
     beforeEach(() => {
         repo = new InMemoryOrderRepository()
@@ -24,6 +26,7 @@ describe("AddItemToOrder use case", () => {
         clock = {
             now: vi.fn(() => new Date("2023-01-01T00:00:00.000Z")),
         }
+        ctx = { orders: repo, pricing, events, clock }
     })
 
     it("afegeix un ítem a una comanda existent i retorna el total actualitzat", async () => {
@@ -41,7 +44,7 @@ describe("AddItemToOrder use case", () => {
         })
         await repo.save(order)
 
-        const useCase = new AddItemToOrder(repo, pricing, events, clock)
+        const useCase = new AddItemToOrder(ctx)
 
         const result = await useCase.execute({
             orderId: "order-1",
@@ -61,7 +64,7 @@ describe("AddItemToOrder use case", () => {
     })
 
     it("retorna error de validació si l'input és invàlid", async () => {
-        const useCase = new AddItemToOrder(repo, pricing, events, clock)
+        const useCase = new AddItemToOrder(ctx)
 
         const result = await useCase.execute({
             orderId: "",
@@ -77,7 +80,7 @@ describe("AddItemToOrder use case", () => {
     })
 
     it("retorna not_found si la comanda no existeix", async () => {
-        const useCase = new AddItemToOrder(repo, pricing, events, clock)
+        const useCase = new AddItemToOrder(ctx)
 
         const result = await useCase.execute({
             orderId: "missing-order",

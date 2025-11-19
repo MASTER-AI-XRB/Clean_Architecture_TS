@@ -1,14 +1,18 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CreateOrder, CreateOrderInput } from '@application/use-cases/CreateOrderUseCase';
 import { InMemoryOrderRepository } from '@infrastructure/persistence/InMemoryOrderRepository';
 
 describe('CreateOrder Use Case', () => {
   let useCase: CreateOrder;
   let repo: InMemoryOrderRepository;
+  let events: { publish: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     repo = new InMemoryOrderRepository();
-    useCase = new CreateOrder(repo);
+    events = {
+      publish: vi.fn().mockResolvedValue(undefined),
+    };
+    useCase = new CreateOrder(repo, events as any);
   });
 
   it('should create a new order successfully', async () => {
