@@ -1,9 +1,17 @@
 import Fastify from "fastify"
-import { OrdersController } from "@infrastructure/http/controllers/OrdersController"
+import { MakeOrdersController } from "@infrastructure/http/controllers/OrdersController"
+import { AppContainer } from "@composition/container"
 
-export async function buildServer() {
+export async function buildServer(c: AppContainer) {
     const app = Fastify()
-    app.post('/orders', OrdersController.create)
-    app.delete("/orders/:id", OrdersController.delete)
+    const ctrl = MakeOrdersController({
+        createOrder: c.useCases.createOrder,
+        addItemToOrder: c.useCases.addItemToOrder,
+        deleteOrder: c.useCases.deleteOrder,
+    })
+
+    app.post("/orders", ctrl.create)
+    app.post("/orders/:orderId/items", ctrl.addItem)
+    app.delete("/orders/:id", ctrl.delete)
     return app
 }

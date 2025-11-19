@@ -1,20 +1,12 @@
 import { AddItemToOrderInput, AddItemToOrderOutput } from "@application/dtos/AddItemToOrderDTO"
 import { AppError, ValidationError, NotFoundError } from "@application/errors"
-import { OrderRepository } from "@application/ports/OrderRepository"
-import { PricingService } from "@application/ports/PricingService"
-import { EventBus } from "@application/ports/EventBus"
-import { Clock } from "@application/ports/Clock"
+import { AppContext } from "@application/context"
 import { OrderItemProps } from "@domain/entities/Order"
 import { DomainEvent } from "@domain/events"
 import { Result, ok, fail } from "@shared/result"
 
 export class AddItemToOrder {
-    constructor (
-        private readonly repo: OrderRepository,
-        private readonly pricing: PricingService,
-        private readonly events: EventBus,
-        private readonly clock: Clock,
-    ) {}
+    constructor (private readonly ctx: AppContext) {}
 
     async execute (input: AddItemToOrderInput & { unitPrice?: number }): Promise<Result<AddItemToOrderOutput, AppError>> {
         const validated = this.validate(input)
@@ -25,7 +17,7 @@ export class AddItemToOrder {
         try {
             const { orderId, sku, qty, currency } = validated.value
 
-            const existing = await this.repo.findById(orderId)
+            const existing = await this.ctx.orders.findById(orderId)
             if (!existing) {
                 const notFound: NotFoundError = {
                     type: "not_found",
@@ -48,9 +40,9 @@ export class AddItemToOrder {
             }
 
             existing.addItem(item)
-            await this.repo.save(existing)
+            await this.ctx.orders.save(existing)
 
-            await this.events.publish([
+            await this.ctx.events.publish([
                 this.makeEvent("order.item_added", {
                     orderId: existing.id,
                     sku,
@@ -91,7 +83,7 @@ export class AddItemToOrder {
         }
 
         try {
-            const fetched = await this.pricing.getCurrentPrice(input.sku as any, input.currency as any)
+            const fetched = await this.ctx.pricing.getCurrentPrice(input.sku as any, input.currency as any)
             if (!fetched) {
                 return fail({
                     type: "validation",
@@ -112,7 +104,7 @@ export class AddItemToOrder {
         return {
             type,
             payload,
-            occurredAt: this.clock.now(),
+            occurredAt: this.ctx.clock.now(),
         }
     }
 

@@ -1,35 +1,22 @@
 import { FastifyRequest, FastifyReply } from "fastify"
-import { createOrder, deleteOrder } from "@composition/container"
 import { AddItemToOrder } from "@application/use-cases/AddItemToOrderUseCase"
+import { CreateOrder } from "@application/use-cases/CreateOrderUseCase"
+import { DeleteOrder } from "@application/use-cases/DeleteOrderUseCase"
 import { AppError } from "@application/errors"
 
-export const OrdersController = {
-    async create(req: FastifyRequest, reply: FastifyReply) {
+export const MakeOrdersController = (deps: {
+    createOrder: CreateOrder
+    addItemToOrder: AddItemToOrder
+    deleteOrder: DeleteOrder
+}) => ({
+    create: async (req: FastifyRequest, reply: FastifyReply) => {
         const { orderId, customerId, items } = req.body as any
-        const out = await createOrder.execute({ orderId, customerId, items })
+        const out = await deps.createOrder.execute({ orderId, customerId, items })
         reply.code(201).send(out)
     },
-
-    async delete(req: FastifyRequest, reply: FastifyReply) {
-        const { id } = req.params as any
-        try {
-            await deleteOrder.execute({ orderId: id })
-            reply.code(204).send()
-        } catch (err: any) {
-            // Not found -> 404; other errors -> 500
-            if (err?.message === 'Order not found') {
-                reply.code(404).send({ error: err.message })
-            } else {
-                reply.code(500).send({ error: err?.message ?? 'Internal error' })
-            }
-        }
-    }
-}
-
-export const MakeOrdersController = (uc: AddItemToOrder) => ({
     addItem: async (req: FastifyRequest, reply: FastifyReply) => {
         const body = req.body as any
-        const res = await uc.execute({
+        const res = await deps.addItemToOrder.execute({
             orderId: (req.params as any) as string,
             sku: body.sku as string,
             qty: body.qty as number,
@@ -41,7 +28,20 @@ export const MakeOrdersController = (uc: AddItemToOrder) => ({
             return reply.code(status).send(body)
         }
         return reply.code(200).send(res.value)
-    }
+    },
+    delete: async (req: FastifyRequest, reply: FastifyReply) => {
+        const { id } = req.params as any
+        try {
+            await deps.deleteOrder.execute({ orderId: id })
+            reply.code(204).send()
+        } catch (err: any) {
+            if (err?.message === "Order not found") {
+                reply.code(404).send({ error: err.message })
+            } else {
+                reply.code(500).send({ error: err?.message ?? "Internal error" })
+            }
+        }
+    },
 })
 
 type ErrorResponse = { status: number; body: AppError }

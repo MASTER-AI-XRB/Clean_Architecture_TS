@@ -35,12 +35,13 @@ export function buildContainer() {
     const clock = { now: () => new Date()}
 
     const createOrder = new CreateOrder(orders, events)
+    const deleteOrder = new DeleteOrder(orders)
     const addItemToOrder = new AddItemToOrder(orders, pricing, events, clock)
 
     return {
         cfg, logger, pool,
         ports: { orders, pricing, events, clock },
-        useCases: { createOrder, addItemToOrder }
+        useCases: { createOrder, addItemToOrder, deleteOrder }
     }
 }
 
